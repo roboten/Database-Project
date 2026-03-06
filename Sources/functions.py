@@ -1,3 +1,4 @@
+
 import mysql.connector
 import os
 def menu(connected=False):
@@ -20,7 +21,7 @@ def menu(connected=False):
     print(f"Database connection status: {'Connected' if connected else 'Not Connected'}")
 
 def connectToDatabase(hostIP="localhost",username="admin", auth="password", dbName="",):
-    """Connect to the database."""
+    #Connect to the database.
     try:
         return mysql.connector.connect(
         host=hostIP, user=username, password=auth, database=dbName)
@@ -29,7 +30,7 @@ def connectToDatabase(hostIP="localhost",username="admin", auth="password", dbNa
         return None
     
 def showAssignedOrders(dbConnection):
-    """Show PickOrders."""
+    #Show PickOrders.
     try:
         cursor = dbConnection.cursor()
         cursor.execute("SELECT po.pickOrd_ID, po.created, CONCAT(u.firstname, ' ', u.lastname) AS staff_name, po.status, po.priority, COUNT(poi.product_ID) AS num_rows, SUM(poi.quantity) 	AS total_quantity FROM PickOrders po JOIN Users u ON u.user_ID = po.user_ID LEFT JOIN PickOrderItems poi ON poi.pickOrd_ID = po.pickOrd_ID GROUP BY po.pickOrd_ID, po.created, staff_name, po.status, po.priority;")
@@ -64,8 +65,8 @@ def showAssignedOrders(dbConnection):
         print(f"Error: {err}")
         input("Press Enter to continue...")
 
-def addPickOrder(dbConnection, user_ID, priority, status, productID, quantity):
-    """Add PickOrder to the database."""
+def addPickOrder(dbConnection, priority, status, productID, quantity, user_ID = None):
+    #Add PickOrder to the database.
     try:
         cursor = dbConnection.cursor()
         cursor.execute("INSERT INTO PickOrders (user_ID, status, priority) VALUES (%s, %s, %s);", (user_ID, status, priority))
@@ -87,7 +88,7 @@ def addPickOrder(dbConnection, user_ID, priority, status, productID, quantity):
         return False
 
 def showOrderStatus(dbConnection):
-    """Show status of PickOrders."""
+    #Show status of PickOrders.
     try:
         cursor = dbConnection.cursor()
         cursor.execute("SELECT u.user_ID, CONCAT(u.firstname, ' ', u.lastname) AS staff_name, COUNT(po.pickOrd_ID) 	AS orders_total, SUM(po.status <> 'Done') AS orders_open, SUM(po.status = 'Done') AS orders_done FROM Users u LEFT JOIN PickOrders po ON po.user_ID = u.user_ID GROUP BY u.user_ID, staff_name ORDER BY orders_open DESC, orders_total DESC;")
@@ -112,15 +113,18 @@ def showOrderStatus(dbConnection):
         input("Press Enter to continue...")
 
 def addProduct(dbConnection, productName, artNum, theType, stock):
-    """Add Product to the database."""
+    #Add Product to the database.
     try:
         print("Enter location details for the product(must be unique):")
         zone = input("Enter location zone(A,B,C,...): ")
         aisle = input("Enter location aisle(1,2,3,...): ")
         shelf = input("Enter location shelf(1,2,3,...): ")
         # Create location and get its ID
-        createLocation(dbConnection, zone, aisle, shelf)
-        
+        locationSuccess = createLocation(dbConnection, zone, aisle, shelf)
+        if locationSuccess == False:
+            print("Failed to create location. Product not added.")
+            input("Press Enter to continue...")
+            return False
         cursor = dbConnection.cursor()
         cursor.execute("SELECT LAST_INSERT_ID();")
         location = cursor.fetchone()[0]
@@ -137,7 +141,7 @@ def addProduct(dbConnection, productName, artNum, theType, stock):
         return False
 
 def showAllProducts(dbConnection):
-    """Show all products in the database."""
+    #Show all products in the database.
     try:
         cursor = dbConnection.cursor()
         cursor.execute("SELECT p.product_ID, p.name, p.article_num, p.type, l.zone, l.aisle, l.shelf, p.stock_quantity FROM Products p JOIN Location l ON l.ID = p.location_ID;")
@@ -162,7 +166,7 @@ def showAllProducts(dbConnection):
         input("Press Enter to continue...")
 
 def showProductStock(dbConnection, product_ID):
-    """Show stock of a product"""
+    #Show stock of a product
     try:
         cursor=dbConnection.cursor()
         cursor.execute("SELECT product_stock(%s)", (product_ID,))
@@ -178,7 +182,7 @@ def showProductStock(dbConnection, product_ID):
         input("Press Enter to continue...")
 
 def searchForProduct(dbConnection, searchTerm):
-    """Search for a product by name or article number."""
+    #Search for a product by name or article number.
     try:
         cursor = dbConnection.cursor()
         cursor.execute("SELECT p.product_ID,p.name, p.article_num, p.type, l.zone, l.aisle, l.shelf, p.stock_quantity FROM Products p JOIN Location l ON l.ID = p.location_ID WHERE p.article_num LIKE %s OR p.name LIKE %s;", (f"%{searchTerm}%", f"%{searchTerm}%"))
@@ -204,7 +208,7 @@ def searchForProduct(dbConnection, searchTerm):
         input("Press Enter to continue...")
 
 def showPickOrderDetails(dbConnection, pickOrd_ID):
-    """Show details of a PickOrder."""
+    #Show details of a PickOrder.
     try:
         cursor = dbConnection.cursor()
         cursor.execute("SELECT poi.pickOrd_ID, p.product_ID, p.name, poi.quantity, l.zone, l.aisle, l.shelf FROM PickOrderItems poi JOIN Products p ON p.product_ID = poi.product_ID JOIN Location l ON l.ID = p.location_ID WHERE poi.pickOrd_ID = %s;", (pickOrd_ID,))
@@ -232,7 +236,7 @@ def showPickOrderDetails(dbConnection, pickOrd_ID):
         input("Press Enter to continue...")
 
 def showProductsLowInStock(dbConnection):
-    """Show products that are low in stock"""
+    #Show products that are low in stock.
     try:
         cursor = dbConnection.cursor()
         cursor.execute("SELECT p.product_ID, p.name, p.article_num, product_stock(p.product_ID) AS stock FROM Products p WHERE product_stock(p.product_ID) <= 5 ORDER BY stock ASC, p.name;")
@@ -269,7 +273,7 @@ def quit(dbConnection):
 #Help functions for main functionality
 
 def createLocation(dbConnection, zone, aisle, shelf):
-    """Create a location in the database."""
+    #Create a location in the database.
     try:
         cursor = dbConnection.cursor()
         cursor.execute("INSERT INTO Location (zone, aisle, shelf) VALUES (%s, %s, %s);", (zone, aisle, shelf))
